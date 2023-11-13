@@ -4,7 +4,7 @@ class App(private val input: Input) {
     var isRunning = true
 
     private var archList: MutableList<Arch> = mutableListOf()
-    private var menu: MutableMap<Int, MenuItem> = mutableMapOf()
+    private var menu: MutableList<MenuItem> = mutableListOf()
     private var currentArch = Arch("")
     private var currentNote = Note("", "")
 
@@ -27,18 +27,18 @@ class App(private val input: Input) {
 
             ScreenType.ARCH_SELECT, ScreenType.NOTE_SELECT -> {
 
-                menu[0] = MenuItem("Создать новый") { changeScreen(createSc(sc)) }
+                menu.add(MenuItem("Создать новый") { changeScreen(createSc(sc)) })
 
                 if (sc == ScreenType.ARCH_SELECT) {
                     val list = archList
-                    list.forEachIndexed { index, item -> menu[index + 1] = MenuItem(item.name, null) }
+                    list.forEach {  item -> menu.add(MenuItem(item.name, null)) }
                 } else {
                     val list = currentArch.notes
-                    list.forEachIndexed { index, item -> menu[index + 1] = MenuItem(item.name, null) }
+                    list.forEach { item -> menu.add(MenuItem(item.name, null)) }
                 }
-                menu[menu.size] = (MenuItem("Выход\n") {
+                menu.add((MenuItem("Выход\n") {
                     changeScreen(if (sc == ScreenType.ARCH_SELECT) ScreenType.EXIT else ScreenType.ARCH_SELECT)
-                })
+                }))
 
             }
 
@@ -49,50 +49,52 @@ class App(private val input: Input) {
                 if (sc == ScreenType.ARCH_CREATE) currentArch = Arch("")
                 else currentNote = Note("", "")
 
-                menu[menu.size] = MenuItem("Ввести имя") {
+                menu.add(MenuItem("Ввести имя") {
                     println("Введите имя:")
                     val name = input.nextLine()
                     if (sc == ScreenType.ARCH_CREATE) currentArch.name = name else currentNote.name = name
-                }
+                    showMenu()
+                })
 
                 if (isNeedDesc) {
-                    menu[menu.size] = MenuItem("Ввести текст") {
+                    menu.add(MenuItem("Ввести текст") {
                         println("Введите текст заметки:")
                         val desc = input.nextLine()
                         currentNote.desc = desc
-                    }
+                        showMenu()
+                    })
                 }
 
-                menu[menu.size] = (MenuItem("Сохранить и выйти") {
+                menu.add(MenuItem("Сохранить и выйти") {
 
                     if (sc == ScreenType.ARCH_CREATE) {
                         if (currentArch.isReadyToSave()) {
                             archList.add(currentArch)
                             changeScreen(selectSc(sc))
-                        }
+                        } else showMenu()
                     } else if (sc == ScreenType.NOTE_CREATE)
                         if (currentNote.isReadyToSave()) {
                             currentArch.notes.add(currentNote)
                             changeScreen(selectSc(sc))
-                        }
+                        } else showMenu()
 
                 })
 
-                menu[menu.size] = MenuItem("Выход\n") {
+                menu.add(MenuItem("Выход\n") {
 
                     changeScreen(selectSc(sc))
 
-                }
+                })
 
             }
 
             ScreenType.NOTE_TEXT -> {
 
-                menu[menu.size] = MenuItem("Выход\n") {
+                menu.add(MenuItem("Выход\n") {
 
                     changeScreen(selectSc(sc))
 
-                }
+                })
 
             }
 
@@ -108,21 +110,18 @@ class App(private val input: Input) {
         println(sc.header)
 
         if (sc == ScreenType.NOTE_TEXT) println(currentNote.toString())
+        menu.forEachIndexed { index, it -> println("${index}: $it")}
 
-        val sortedMenu = menu.toSortedMap()
-        for (i in sortedMenu) {
-            println("${i.key}: ${i.value}")
-        }
     }
 
-    fun isMenuKeyCorrect(key: Int) = menu.containsKey(key)
+    fun isMenuKeyCorrect(key: Int) = key in menu.indices
 
     fun onClick(key: Int) {
 
-        val item = menu[key] ?: return
-        if (item.func != null) {
+        val item = menu[key]
+        if (item.handler != null) {
 
-            item.func?.invoke()
+            item.handler.invoke()
             return
 
         }
@@ -163,10 +162,8 @@ class App(private val input: Input) {
     private fun selectSc(sc: ScreenType): ScreenType {
         return when (sc) {
             ScreenType.ARCH_CREATE -> ScreenType.ARCH_SELECT
-            ScreenType.NOTE_CREATE -> ScreenType.NOTE_SELECT
-            ScreenType.ARCH_SELECT -> ScreenType.NOTE_SELECT
+            ScreenType.NOTE_CREATE, ScreenType.ARCH_SELECT, ScreenType.NOTE_TEXT -> ScreenType.NOTE_SELECT
             ScreenType.NOTE_SELECT -> ScreenType.NOTE_TEXT
-            ScreenType.NOTE_TEXT -> ScreenType.NOTE_SELECT
             else -> {
                 ScreenType.EXIT
             }
